@@ -7,7 +7,7 @@ configChangeEmitter.addEventListener('configChange', (event) => {
 
 
 function enableFeatures() {
-    if (!window._yttv) return setTimeout(enableFeatures, 250);
+    if (!window._yttv) return setTimeout(enableFeatures, 500);
     const yttvValues = Object.values(window._yttv);
 
     // Enable preview mode

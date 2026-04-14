@@ -2,6 +2,10 @@
 // Automatically adds user's local language to subtitle auto-translate menu if not present
 
 import { configRead } from "../config.js";
+
+if (!configRead('enableShowUserLanguage') && !configRead('enableShowOtherLanguages')) {
+    console.log("TizenTube Subtitle Localization: Disabled");
+}
 import languages from "../translations/language-names.js";
 
 const LANGUAGE_CODES = [

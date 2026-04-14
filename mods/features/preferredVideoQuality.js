@@ -72,7 +72,10 @@ class PreferredQualityHandler {
 
     #applyQuality() {
         const preferredQuality = configRead(CONFIG_KEYS.QUALITY);
-        if (!preferredQuality || preferredQuality === 'auto' || !this.#player) return;
+        if (!preferredQuality || preferredQuality === 'auto' || !this.#player) {
+            clearTimeout(this.#attachTimeout);
+            return;
+        }
 
         try {
             const quality = this.#determineQuality(preferredQuality);

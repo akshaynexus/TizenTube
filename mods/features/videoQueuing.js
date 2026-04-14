@@ -6,6 +6,9 @@ window.queuedVideos = {
 import resolveCommand from '../resolveCommand.js';
 
 function addListener() {
+    // Skip entirely if queue is empty 
+    if (!window.queuedVideos || window.queuedVideos.videos.length === 0) return;
+    
     const videoPlayer = document.querySelector('.html5-video-player');
     if (!videoPlayer) return setTimeout(addListener, 250);
 

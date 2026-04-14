@@ -192,13 +192,18 @@ function processItemsSimple(items) {
 }
 
 function processSponsorBlockUI(overlay) {
-  const highlight = configRead('enableSponsorBlockHighlight');
+  const mode = configRead('sponsorBlockMode');
+  if (mode === 'disabled') return;
+  
   const manual = configRead('sponsorBlockManualSkips') || [];
   
-  if (!highlight && manual.length === 0) {
+  // In 'auto' mode, only show timeline buttons if manual skips are configured
+  if (mode === 'auto' && manual.length === 0) {
     if (overlay.timelyActionRenderers) overlay.timelyActionRenderers = [];
     return;
   }
+  
+  // In 'buttons' mode, always show buttons
 
   const segments = window.sponsorblock?.segments;
   if (!segments) return;
@@ -230,7 +235,11 @@ function processSponsorBlockUI(overlay) {
 }
 
 function processSponsorBlockButton(promotedActions) {
-  if (!configRead('enableSponsorBlockHighlight')) return;
+  const mode = configRead('sponsorBlockMode');
+  if (mode === 'disabled') return;
+  
+  if (!configRead('enableSponsorBlockHighlight') && mode === 'auto') return;
+  
   const segments = window.sponsorblock?.segments;
   if (!segments) return;
 

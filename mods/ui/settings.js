@@ -103,6 +103,17 @@ export default function modernUI(update, parameters) {
             },
             options: [
                 {
+                    name: t('settings.options.sponsorblock.options.mode'),
+                    icon: 'MORE_VERT',
+                    value: null,
+                    values: [
+                        { name: 'Auto Skip + Buttons', value: 'auto' },
+                        { name: 'Buttons Only', value: 'buttons' },
+                        { name: 'Disabled', value: 'disabled' }
+                    ],
+                    selectKey: 'sponsorBlockMode'
+                },
+                {
                     name: t('settings.options.sponsorblock.options.enableSB'),
                     icon: 'MONEY_HAND',
                     value: 'enableSponsorBlock'

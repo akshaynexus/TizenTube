@@ -12,10 +12,9 @@ const defaultConfig = {
   enableSponsorBlockPreview: true,
   enableSponsorBlockMusicOfftopic: true,
   enableSponsorBlockFiller: true,
-  enableSponsorBlockHighlight: true,
+enableSponsorBlockHighlight: true,
   sponsorBlockSkipOffset: 0,
-  videoSpeed: 1,
-  preferredVideoQuality: 'auto',
+  sponsorBlockMode: 'auto', // 'auto' = auto-skip + buttons, 'buttons' = only show buttons, 'disabled' = off
   enableDeArrow: false,
   enableDeArrowThumbnails: false,
   enableSponsorBlockOnlyHighlight: false,

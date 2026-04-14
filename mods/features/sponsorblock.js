@@ -25,7 +25,8 @@ class SponsorBlockHandler {
   }
 
   async init() {
-    if (!configRead('enableSponsorBlock')) return;
+    const mode = configRead('sponsorBlockMode');
+    if (mode === 'disabled') return;
     
     const hash = sha256(this.videoID).substring(0, 4);
     const categories = ['sponsor', 'intro', 'outro', 'interaction', 'selfpromo', 'preview', 'filler', 'music_offtopic', 'poi_highlight'];
@@ -45,6 +46,9 @@ class SponsorBlockHandler {
   }
 
   initAutoSkip() {
+    const mode = configRead('sponsorBlockMode');
+    if (mode !== 'auto') return; // Only auto-skip in 'auto' mode
+    
     const video = document.querySelector('video');
     if (!video) {
       setTimeout(() => this.initAutoSkip(), 250);

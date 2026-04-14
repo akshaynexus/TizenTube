@@ -5,6 +5,30 @@ import { timelyAction, longPressData, MenuServiceItemRenderer, ShelfRenderer, Ti
 import { PatchSettings } from '../ui/customYTSettings.js';
 import { t } from 'i18next';
 
+const shelfProcessQueue = [];
+let shelfProcessPending = false;
+
+function processShelfQueue() {
+  if (shelfProcessPending || shelfProcessQueue.length === 0) return;
+  shelfProcessPending = true;
+  const items = shelfProcessQueue.shift();
+  deArrowify(items);
+  hqify(items);
+  addLongPress(items);
+  if (shelfProcessQueue.length > 0) {
+    setTimeout(processShelfQueue, 10);
+  } else {
+    shelfProcessPending = false;
+  }
+}
+
+function queueShelfProcessing(items) {
+  shelfProcessQueue.push(items);
+  if (!shelfProcessPending) {
+    setTimeout(processShelfQueue, 50);
+  }
+}
+
 /**
  * This is a minimal reimplementation of the following uBlock Origin rule:
  * https://github.com/uBlockOrigin/uAssets/blob/3497eebd440f4871830b9b45af0afc406c6eb593/filters/filters.txt#L116
@@ -15,8 +39,10 @@ import { t } from 'i18next';
  * Seems like for now dropping just the adPlacements is enough for YouTube TV
  */
 const origParse = JSON.parse;
+let parseCount = 0;
 JSON.parse = function () {
   const r = origParse.apply(this, arguments);
+  parseCount++;
   const adBlockEnabled = configRead('enableAdBlock');
   const signinReminderEnabled = configRead('enableSigninReminder');
 
@@ -254,6 +280,63 @@ JSON.parse = function () {
   return r;
 };
 
+// Skip processing every single parse - only process certain endpoints
+const shouldProcessParse = (r) => {
+  if (!r) return false;
+  return r?.contents?.tvBrowseRenderer?.content?.sectionListRenderer?.contents ||
+    r?.contents?.sectionListRenderer?.contents ||
+    r?.continuationContents?.sectionListContinuation?.contents ||
+    r?.continuationContents?.horizontalListContinuation?.items ||
+    r?.contents?.tvBrowseRenderer?.content?.tvSecondaryNavRenderer?.sections ||
+    r?.contents?.singleColumnWatchNextResults?.pivot?.sectionListRenderer;
+};
+
+const deArrowifyCache = new Map();
+const deArrowify = async (items) => {
+  if (!configRead('enableDeArrow')) return;
+  for (const item of items) {
+    if (item.adSlotRenderer) {
+      const index = items.indexOf(item);
+      items.splice(index, 1);
+      continue;
+    }
+    if (!item.tileRenderer) continue;
+    if (!item.tileRenderer.contentId) continue;
+    if (deArrowifyCache.has(item.tileRenderer.contentId)) {
+      const cached = deArrowifyCache.get(item.tileRenderer.contentId);
+      if (cached) {
+        item.tileRenderer.metadata.tileMetadataRenderer.title.simpleText = cached;
+      }
+      continue;
+    }
+    const videoID = item.tileRenderer.contentId;
+    try {
+      const res = await fetch(`https://sponsor.ajay.app/api/branding?videoID=${videoID}`);
+      const data = await res.json();
+      if (data.titles.length > 0) {
+        const mostVoted = data.titles.reduce((max, title) => max.votes > title.votes ? max : title);
+        item.tileRenderer.metadata.tileMetadataRenderer.title.simpleText = mostVoted.title;
+        deArrowifyCache.set(videoID, mostVoted.title);
+      } else {
+        deArrowifyCache.set(videoID, null);
+      }
+
+      if (data.thumbnails.length > 0 && configRead('enableDeArrowThumbnails')) {
+        const mostVotedThumbnail = data.thumbnails.reduce((max, thumbnail) => max.votes > thumbnail.votes ? max : thumbnail);
+        if (mostVotedThumbnail.timestamp) {
+          item.tileRenderer.header.tileHeaderRenderer.thumbnail.thumbnails = [
+            {
+              url: `https://dearrow-thumb.ajay.app/api/v1/getThumbnail?videoID=${videoID}&time=${mostVotedThumbnail.timestamp}`,
+              width: 1280,
+              height: 640
+            }
+          ]
+        }
+      }
+    } catch (e) { }
+  }
+}
+
 // Patch JSON.parse to use the custom one
 window.JSON.parse = JSON.parse;
 for (const key in window._yttv) {
@@ -307,40 +390,6 @@ function addPreviews(items) {
     }
   }
 }
-
-function deArrowify(items) {
-  for (const item of items) {
-    if (item.adSlotRenderer) {
-      const index = items.indexOf(item);
-      items.splice(index, 1);
-      continue;
-    }
-    if (!item.tileRenderer) continue;
-    if (configRead('enableDeArrow')) {
-      const videoID = item.tileRenderer.contentId;
-      fetch(`https://sponsor.ajay.app/api/branding?videoID=${videoID}`).then(res => res.json()).then(data => {
-        if (data.titles.length > 0) {
-          const mostVoted = data.titles.reduce((max, title) => max.votes > title.votes ? max : title);
-          item.tileRenderer.metadata.tileMetadataRenderer.title.simpleText = mostVoted.title;
-        }
-
-        if (data.thumbnails.length > 0 && configRead('enableDeArrowThumbnails')) {
-          const mostVotedThumbnail = data.thumbnails.reduce((max, thumbnail) => max.votes > thumbnail.votes ? max : thumbnail);
-          if (mostVotedThumbnail.timestamp) {
-            item.tileRenderer.header.tileHeaderRenderer.thumbnail.thumbnails = [
-              {
-                url: `https://dearrow-thumb.ajay.app/api/v1/getThumbnail?videoID=${videoID}&time=${mostVotedThumbnail.timestamp}`,
-                width: 1280,
-                height: 640
-              }
-            ]
-          }
-        }
-      }).catch(() => { });
-    }
-  }
-}
-
 
 function hqify(items) {
   for (const item of items) {

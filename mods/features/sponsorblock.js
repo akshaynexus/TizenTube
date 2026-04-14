@@ -291,9 +291,14 @@ class SponsorBlockHandler {
       start - this.video.currentTime
     );
 
-    this.nextSkipTimeout = setTimeout(() => {
+this.nextSkipTimeout = setTimeout(() => {
+      if (!this.video || this.video.ended) {
+        console.info(this.videoID, 'Video ended or not available');
+        return;
+      }
       if (this.video.paused) {
-        console.info(this.videoID, 'Currently paused, ignoring...');
+        console.info(this.videoID, 'Currently paused, rescheduling skip...');
+        this.nextSkipTimeout = setTimeout(() => this.scheduleSkip(), 500);
         return;
       }
       if (!this.skippableCategories.includes(segment.category)) {
@@ -301,46 +306,23 @@ class SponsorBlockHandler {
           this.videoID,
           'Segment',
           segment.category,
-          'is not skippable, ignoring...'
+          'is not skippable, skipping...'
         );
         return;
       }
 
       const skipName = barTypes[segment.category]?.name || segment.category;
-      console.info(this.videoID, 'Skipping', segment);
-      if (!this.manualSkippableCategories.includes(segment.category)) {
-        const wasSkippedBefore = this.skippedCategories.get(segment.UUID)
-        if (wasSkippedBefore) {
-          wasSkippedBefore.count++;
-          wasSkippedBefore.lastSkipped = Date.now();
-          this.skippedCategories.set(segment.UUID, wasSkippedBefore);
+      const skipOffset = configRead('sponsorBlockSkipOffset') || 0;
+      const targetTime = end - skipOffset;
+      console.info(this.videoID, 'Skipping to', targetTime, 'from segment', segment);
 
-          if (wasSkippedBefore.lastSkipped - wasSkippedBefore.firstSkipped < 1000) {
-            if (!wasSkippedBefore.hasShownToast) {
-              if (configRead('enableSponsorBlockToasts')) {
-                showToast('SponsorBlock', t('sponsorblock.toasts.notSkipping', { segment: skipName, count: wasSkippedBefore.count }));
-              }
-              wasSkippedBefore.hasShownToast = true;
-              this.skippedCategories.set(segment.UUID, wasSkippedBefore);
-            }
-            return;
-          }
-        } else {
-          this.skippedCategories.set(segment.UUID, {
-            count: 1,
-            firstSkipped: Date.now(),
-            lastSkipped: Date.now(),
-            hasShownToast: false
-          });
-        }
-        if (configRead('enableSponsorBlockToasts')) {
-          showToast('SponsorBlock', t('sponsorblock.toasts.skipping', { segment: skipName }));
-        }
-        if (this.video.duration - end < 1) {
-          this.video.currentTime = end - 1;
-        } else this.video.currentTime = end;
-        this.scheduleSkip();
+      if (configRead('enableSponsorBlockToasts')) {
+        showToast('SponsorBlock', t('sponsorblock.toasts.skipping', { segment: skipName }));
       }
+
+      const safeTime = Math.max(0, Math.min(targetTime, this.video.duration - 0.5));
+      this.video.currentTime = safeTime;
+      this.scheduleSkip();
     }, (start - this.video.currentTime) * 1000);
   }
 

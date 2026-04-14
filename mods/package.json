@@ -1,7 +1,7 @@
 {
   "name": "@akshaynexus/mods",
   "version": "1.0.0",
-  "description": "",
+  "description": "TizenTube mods for enhanced YouTube TV experience",
   "main": "index.js",
   "type": "module",
   "scripts": {

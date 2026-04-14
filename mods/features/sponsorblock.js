@@ -59,26 +59,44 @@ class SponsorBlockHandler {
     if (skipCategories.length === 0) return;
 
     const doSkip = () => {
-      if (!this.segments.length) return;
+      if (!this.segments.length || !video) return;
       
       const ct = video.currentTime;
-      const seg = this.segments.find(s => 
-        s.category === 'poi_highlight' && 
+      const skipCategories = this.getSkipCategories();
+      
+      // 1. Check if we're already inside a segment - skip to end
+      const insideSeg = this.segments.find(s => 
+        (skipCategories.includes(s.category) || s.category === 'poi_highlight') && 
         s.segment[0] <= ct && ct < s.segment[1]
       );
       
-      if (seg && !this.skippedSegments.has(seg.UUID)) {
-        const alreadySkipped = this.getSkipCategories();
-        if (alreadySkipped.includes(seg.category) || seg.category === 'poi_highlight') {
-          this.skippedSegments.set(seg.UUID, Date.now());
-          
-          if (configRead('enableSponsorBlockToasts')) {
-            showToast('SponsorBlock', `Skipped ${barTypes[seg.category]?.name || seg.category}`);
-          }
-          
-          const skipTo = seg.segment[1] - 0.1;
-          video.currentTime = Math.min(skipTo, video.duration - 0.5);
+      if (insideSeg && !this.skippedSegments.has(insideSeg.UUID)) {
+        this.skippedSegments.set(insideSeg.UUID, Date.now());
+        
+        if (configRead('enableSponsorBlockToasts')) {
+          showToast('SponsorBlock', `Skipped ${barTypes[insideSeg.category]?.name || insideSeg.category}`);
         }
+        
+        const skipTo = insideSeg.segment[1] - 0.1;
+        video.currentTime = Math.min(skipTo, video.duration - 0.5);
+        return;
+      }
+      
+      // 2. Check if we're about to enter a segment (within 0.5s) - skip ahead
+      const aboutToEnter = this.segments.find(s => 
+        (skipCategories.includes(s.category) || s.category === 'poi_highlight') && 
+        s.segment[0] > ct && s.segment[0] <= ct + 0.5
+      );
+      
+      if (aboutToEnter && !this.skippedSegments.has(aboutToEnter.UUID)) {
+        this.skippedSegments.set(aboutToEnter.UUID, Date.now());
+        
+        if (configRead('enableSponsorBlockToasts')) {
+          showToast('SponsorBlock', `Skipped ${barTypes[aboutToEnter.category]?.name || aboutToEnter.category}`);
+        }
+        
+        const skipTo = aboutToEnter.segment[1] - 0.1;
+        video.currentTime = Math.min(skipTo, video.duration - 0.5);
       }
     };
 
